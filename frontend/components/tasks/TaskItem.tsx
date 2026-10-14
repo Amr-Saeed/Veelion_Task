@@ -13,10 +13,13 @@ function formatUpdatedAt(value: string): string {
 
 export function TaskItem({ task, busy, onToggle }: TaskItemProps) {
   return (
-    <li className="card task-item">
+    <li className={`card task-item ${task.completed ? "task-item-completed" : "task-item-pending"}`}>
       <div className="task-item-header">
         <p className="task-title">{task.title}</p>
-        <span className="badge">{task.completed ? "Completed" : "Pending"}</span>
+        <span className={`badge ${task.completed ? "badge-completed" : "badge-pending"}`}>
+          <span className="status-dot" aria-hidden="true" />
+          {task.completed ? "Completed" : "Pending"}
+        </span>
       </div>
 
       <small className="muted">
@@ -26,7 +29,7 @@ export function TaskItem({ task, busy, onToggle }: TaskItemProps) {
       <div>
         <button
           type="button"
-          className="button"
+          className={`button task-action ${task.completed ? "task-action-pending" : "task-action-complete"}`}
           onClick={() => onToggle(task)}
           disabled={busy}
           aria-label={`Mark ${task.title} as ${task.completed ? "pending" : "completed"}`}

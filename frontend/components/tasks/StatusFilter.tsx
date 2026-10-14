@@ -22,7 +22,7 @@ export function StatusFilter({ value, onChange }: StatusFilterProps) {
             <button
               key={filter.value}
               type="button"
-              className={active ? "button primary" : "button"}
+              className={`button filter-button filter-button-${filter.value} ${active ? "filter-button-active" : ""}`}
               onClick={() => onChange(filter.value)}
               aria-pressed={active}
             >
