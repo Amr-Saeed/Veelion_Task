@@ -4,6 +4,25 @@ const { readJsonArray } = require('../../../utils/jsonStore');
 const DATA_DIRECTORY = path.join(__dirname, '..', '..', '..', '..', 'data');
 const TASKS_FILE_PATH = path.join(DATA_DIRECTORY, 'tasks.json');
 const ACTIVITY_FILE_PATH = path.join(DATA_DIRECTORY, 'activity.json');
+const RECENT_ACTIVITY_WINDOW_DAYS = 7;
+
+function getTaskStatus(task) {
+  if (task.status === 'todo' || task.status === 'in-progress' || task.status === 'done') {
+    return task.status;
+  }
+
+  return task.completed === true ? 'done' : 'todo';
+}
+
+function isRecentActivity(activity, now = Date.now()) {
+  const timestamp = Date.parse(activity.when);
+  if (Number.isNaN(timestamp)) {
+    return false;
+  }
+
+  const windowStart = now - RECENT_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return timestamp >= windowStart && timestamp <= now;
+}
 
 async function getTasksSummary() {
   const [tasks, activities] = await Promise.all([
@@ -11,20 +30,20 @@ async function getTasksSummary() {
     readJsonArray(ACTIVITY_FILE_PATH)
   ]);
 
-  const total = tasks.length;
-
   const byStatus = {
-    todo: tasks.filter(t => !t.completed).length,
-    "in-progress": 0,
-    done: tasks.filter(t => t.completed).length
+    todo: 0,
+    'in-progress': 0,
+    done: 0,
   };
 
-  const recentActivityCount = activities.length;
+  for (const task of tasks) {
+    byStatus[getTaskStatus(task)] += 1;
+  }
 
   return {
-    total,
+    total: tasks.length,
     byStatus,
-    recentActivityCount
+    recentActivityCount: activities.filter((activity) => isRecentActivity(activity)).length,
   };
 }
 

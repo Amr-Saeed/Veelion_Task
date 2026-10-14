@@ -1,5 +1,12 @@
 import { BACKEND_BASE_URL } from "@/lib/constants";
-import type { ActivityLog, ErrorResponse, Task, TaskResponse, TasksResponse } from "@/types/api";
+import type {
+  ActivityLog,
+  ErrorResponse,
+  Task,
+  TaskResponse,
+  TasksResponse,
+  TasksSummary,
+} from "@/types/api";
 
 export class BackendApiError extends Error {
   status: number;
@@ -78,5 +85,21 @@ export async function getActivityFromBackend(): Promise<ActivityLog[]> {
     return (await response.json()) as ActivityLog[];
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to load activity logs.");
+  }
+}
+
+export async function getTasksSummaryFromBackend(): Promise<TasksSummary> {
+  try {
+    const response = await fetch(buildBackendUrl("/reports/tasks-summary"), {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+
+    return (await response.json()) as TasksSummary;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Failed to load task summary.");
   }
 }
