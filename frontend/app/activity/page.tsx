@@ -72,8 +72,9 @@ export default function ActivityPage() {
   return (
     <main className="stack">
       <nav className="page-nav" aria-label="Page navigation">
-        <Link href="/" className="button">
-          Back
+        <Link href="/" className="back-button">
+          <span aria-hidden="true">←</span>
+          Back to overview
         </Link>
       </nav>
 
