@@ -1,133 +1,142 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import type { ActivityLog } from "@/types/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ActivityLog, ErrorResponse } from "@/types/api";
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unable to load activity.";
+}
+
+async function fetchActivity(): Promise<ActivityLog[]> {
+  const response = await fetch("/api/activity", { cache: "no-store" });
+
+  if (!response.ok) {
+    let message = `Request failed with ${response.status}`;
+
+    try {
+      const body = (await response.json()) as ErrorResponse;
+      message = body.error?.message || message;
+    } catch {
+      // Use the HTTP status when the server does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return (await response.json()) as ActivityLog[];
+}
+
+function formatActivityTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown time" : date.toLocaleString();
+}
 
 export default function ActivityPage() {
-  const [allActivity, setAllActivity] = useState<ActivityLog[]>([]);
-  const [shownActivity, setShownActivity] = useState<ActivityLog[]>([]);
+  const [activity, setActivity] = useState<ActivityLog[]>([]);
   const [query, setQuery] = useState("");
-  const [tick, setTick] = useState(0);
-  const [forcedList, setForcedList] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  function formatTimeA(value: string) {
-    return new Date(value).toLocaleString();
-  }
+  const loadActivity = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-  function formatTimeB(value: string) {
-    return new Date(value).toLocaleString();
-  }
-
-  function applyFilterA(items: ActivityLog[], text: string) {
-    if (!text) {
-      return items;
+    try {
+      setActivity(await fetchActivity());
+    } catch (loadError) {
+      setError(getErrorMessage(loadError));
+    } finally {
+      setLoading(false);
     }
-
-    const lower = text.toLowerCase();
-    return items.filter(
-      (item) =>
-        (item.action || "").toLowerCase().includes(lower) ||
-        (item.info || "").toLowerCase().includes(lower)
-    );
-  }
-
-  function applyFilterB(items: ActivityLog[], text: string) {
-    if (!text) {
-      return items;
-    }
-
-    const lower = text.toLowerCase();
-    return items.filter(
-      (item) =>
-        (item.action || "").toLowerCase().indexOf(lower) !== -1 ||
-        (item.info || "").toLowerCase().indexOf(lower) !== -1
-    );
-  }
-
-  useEffect(() => {
-    fetch("/api/activity")
-      .then((response) => response.json())
-      .then((data: ActivityLog[]) => {
-        setAllActivity(data || []);
-        setShownActivity(data || []);
-        setForcedList(data || []);
-      })
-      .catch(() => {
-        setAllActivity([]);
-        setShownActivity([]);
-        setForcedList([]);
-      });
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setTick((value) => value + 1);
-    }, 1400);
+    void loadActivity();
+  }, [loadActivity]);
 
-    return () => clearInterval(id);
-  }, []);
+  const visibleActivity = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
 
-  useEffect(() => {
-    const a = applyFilterA(allActivity, query);
-    const b = applyFilterB(a, query);
-    setShownActivity(b);
-  }, [query, allActivity, tick]);
-
-  useEffect(() => {
-    if (tick % 2 === 0) {
-      setForcedList([...shownActivity]);
-    } else {
-      setForcedList(shownActivity.map((item) => ({ ...item })));
+    if (!normalizedQuery) {
+      return activity;
     }
-  }, [shownActivity, tick]);
 
-  const stats = useMemo(() => {
-    return {
-      total: allActivity.length,
-      visible: shownActivity.length,
-      everySecondTick: tick,
-    };
-  }, [allActivity.length, shownActivity.length, tick]);
+    return activity.filter((item) =>
+      [item.action, item.info].some((value) =>
+        value?.toLowerCase().includes(normalizedQuery)
+      )
+    );
+  }, [activity, query]);
 
   return (
     <main className="stack">
-      <nav>
+      <nav className="page-nav" aria-label="Page navigation">
         <Link href="/" className="button">
           Back
         </Link>
       </nav>
 
-      <section className="card" style={{ padding: "1rem" }}>
-        <h1 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Activity Feed</h1>
+      <header className="card page-header">
+        <p className="eyebrow">History</p>
+        <h1>Activity Feed</h1>
+        <p className="muted">Review the latest actions recorded by the application.</p>
+      </header>
 
+      <section className="card activity-toolbar" aria-label="Activity controls">
+        <label className="input-label" htmlFor="activity-search">
+          Search activity
+        </label>
         <input
+          id="activity-search"
           className="input"
-          placeholder="Search activity"
+          placeholder="Search by action or details"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
+        <p className="muted activity-count">
+          Showing {visibleActivity.length} of {activity.length} records
+        </p>
       </section>
 
-      <section className="card" style={{ padding: "1rem" }}>
-        <small style={{ color: "var(--muted)" }}>
-          Total: {stats.total} | Visible: {stats.visible}
-        </small>
-      </section>
+      {loading ? (
+        <section className="card feedback" role="status">
+          Loading activity...
+        </section>
+      ) : null}
 
-      <section className="card" style={{ padding: "1rem" }}>
-        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: "0.7rem" }}>
-          {forcedList.map((item) => (
-            <li key={item.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: "0.6rem" }}>
-              <div style={{ fontWeight: 600 }}>{item.action || "(no action)"}</div>
-              <div>{item.info || "(no info)"}</div>
-              <small style={{ color: "var(--muted)" }}>{formatTimeA(item.when)}</small>
-              <br />
-              <small style={{ color: "var(--muted)" }}>{formatTimeB(item.when)}</small>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {error ? (
+        <section className="card feedback feedback-error" role="alert">
+          <p>{error}</p>
+          <button type="button" className="button" onClick={() => void loadActivity()}>
+            Retry
+          </button>
+        </section>
+      ) : null}
+
+      {!loading && !error && visibleActivity.length === 0 ? (
+        <section className="card feedback">
+          {activity.length === 0
+            ? "No activity has been recorded yet."
+            : "No activity matches your search."}
+        </section>
+      ) : null}
+
+      {!loading && !error && visibleActivity.length > 0 ? (
+        <section className="card activity-list" aria-label="Activity records">
+          <ul>
+            {visibleActivity.map((item) => (
+              <li key={item.id} className="activity-entry">
+                <div>
+                  <strong>{item.action || "Untitled action"}</strong>
+                  <p>{item.info || "No additional details."}</p>
+                </div>
+                <time dateTime={item.when}>{formatActivityTime(item.when)}</time>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   );
 }

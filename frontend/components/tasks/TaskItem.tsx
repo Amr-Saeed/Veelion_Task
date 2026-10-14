@@ -6,23 +6,21 @@ type TaskItemProps = {
   onToggle: (task: Task) => void;
 };
 
+function formatUpdatedAt(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown time" : date.toLocaleString();
+}
+
 export function TaskItem({ task, busy, onToggle }: TaskItemProps) {
   return (
-    <li
-      className="card"
-      style={{
-        padding: "0.85rem",
-        display: "grid",
-        gap: "0.4rem",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.8rem", alignItems: "start" }}>
-        <p style={{ margin: 0, fontWeight: 600 }}>{task.title}</p>
+    <li className="card task-item">
+      <div className="task-item-header">
+        <p className="task-title">{task.title}</p>
         <span className="badge">{task.completed ? "Completed" : "Pending"}</span>
       </div>
 
-      <small style={{ color: "var(--muted)" }}>
-        Updated: {new Date(task.updatedAt).toLocaleString()}
+      <small className="muted">
+        Updated: {formatUpdatedAt(task.updatedAt)}
       </small>
 
       <div>
