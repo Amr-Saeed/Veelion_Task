@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { updateTaskInBackend } from "@/lib/backendApi";
+import { BackendApiError, updateTaskInBackend } from "@/lib/backendApi";
 
 type RouteParams = {
   params: {
@@ -23,7 +23,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   } catch (error) {
     return NextResponse.json(
       { error: { message: error instanceof Error ? error.message : "Unable to update task." } },
-      { status: 500 }
+      { status: error instanceof BackendApiError ? error.status : 500 }
     );
   }
 }

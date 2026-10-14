@@ -1,17 +1,17 @@
-const aSvc = require('../services/activity.service');
+const activityService = require('../services/activity.service');
+const asyncHandler = require('../../../middleware/asyncHandler');
 
-function get_activity(req, res) {
-  const x = aSvc.getAllActivity();
-  res.json(x);
-}
+const getActivity = asyncHandler(async (req, res) => {
+  const activities = await activityService.getAllActivity();
+  res.status(200).json(activities);
+});
 
-function addActivity(req, res) {
-  const bodyData = req.body || {};
-  const made = aSvc.createNewActivity(bodyData);
-  res.status(201).json(made);
-}
+const addActivity = asyncHandler(async (req, res) => {
+  const activity = await activityService.createNewActivity(req.body);
+  res.status(201).json(activity);
+});
 
 module.exports = {
-  get_activity,
+  getActivity,
   addActivity,
 };

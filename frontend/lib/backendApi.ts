@@ -1,18 +1,28 @@
 import { BACKEND_BASE_URL } from "@/lib/constants";
 import type { ActivityLog, ErrorResponse, Task, TaskResponse, TasksResponse } from "@/types/api";
 
+export class BackendApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "BackendApiError";
+    this.status = status;
+  }
+}
+
 function buildBackendUrl(path: string): string {
   return `${BACKEND_BASE_URL}${path}`;
 }
 
-async function parseError(response: Response): Promise<string> {
+async function parseError(response: Response): Promise<BackendApiError> {
   let fallback = `Request failed with status ${response.status}`;
 
   try {
     const body = (await response.json()) as ErrorResponse;
-    return body.error?.message || fallback;
+    return new BackendApiError(body.error?.message || fallback, response.status);
   } catch {
-    return fallback;
+    return new BackendApiError(fallback, response.status);
   }
 }
 
@@ -23,7 +33,7 @@ export async function getTasksFromBackend(): Promise<Task[]> {
     });
 
     if (!response.ok) {
-      throw new Error(await parseError(response));
+      throw await parseError(response);
     }
 
     const body = (await response.json()) as TasksResponse;
@@ -45,7 +55,7 @@ export async function updateTaskInBackend(taskId: string, completed: boolean): P
     });
 
     if (!response.ok) {
-      throw new Error(await parseError(response));
+      throw await parseError(response);
     }
 
     const body = (await response.json()) as TaskResponse;
@@ -62,7 +72,7 @@ export async function getActivityFromBackend(): Promise<ActivityLog[]> {
     });
 
     if (!response.ok) {
-      throw new Error(await parseError(response));
+      throw await parseError(response);
     }
 
     return (await response.json()) as ActivityLog[];

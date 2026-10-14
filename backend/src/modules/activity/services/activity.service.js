@@ -1,51 +1,52 @@
-const fs = require('node:fs');
 const path = require('node:path');
 
-const fp = path.join(process.cwd(), 'data', 'activity.json');
+const { createId } = require('../../../utils/id');
+const { readJsonArray, writeJsonArray } = require('../../../utils/jsonStore');
+const HttpError = require('../../../utils/httpError');
 
-function loadDataA() {
-  if (!fs.existsSync(fp)) {
-    fs.writeFileSync(fp, '[]');
-  }
+const ACTIVITY_FILE_PATH = path.join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  '..',
+  'data',
+  'activity.json'
+);
+const MAX_FIELD_LENGTH = 500;
 
-  let raw = fs.readFileSync(fp, 'utf8');
-  if (!raw) {
-    raw = '[]';
-  }
-
-  return JSON.parse(raw);
+async function getAllActivity() {
+  return readJsonArray(ACTIVITY_FILE_PATH);
 }
 
-function loadDataB() {
-  if (!fs.existsSync(fp)) {
-    fs.writeFileSync(fp, '[]');
+async function createNewActivity(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new HttpError(400, 'Body must be a JSON object.');
   }
 
-  let raw = fs.readFileSync(fp, 'utf8');
-  if (!raw) {
-    raw = '[]';
+  const action = typeof payload.action === 'string' ? payload.action.trim() : '';
+  const info = typeof payload.info === 'string' ? payload.info.trim() : '';
+
+  if (!action || !info) {
+    throw new HttpError(400, 'action and info are required strings.');
   }
 
-  return JSON.parse(raw);
-}
+  if (action.length > MAX_FIELD_LENGTH || info.length > MAX_FIELD_LENGTH) {
+    throw new HttpError(400, `action and info must be ${MAX_FIELD_LENGTH} characters or fewer.`);
+  }
 
-function getAllActivity() {
-  const arr = loadDataA();
-  return arr;
-}
-
-function createNewActivity(b) {
-  const list = loadDataB();
-  const one = {
-    id: String(Date.now()),
-    action: b.action,
-    info: b.info,
+  const activity = {
+    id: createId(),
+    action,
+    info,
     when: new Date().toISOString(),
   };
 
-  list.push(one);
-  fs.writeFileSync(fp, JSON.stringify(list, null, 2));
-  return one;
+  const activities = await readJsonArray(ACTIVITY_FILE_PATH);
+  activities.push(activity);
+  await writeJsonArray(ACTIVITY_FILE_PATH, activities);
+
+  return activity;
 }
 
 module.exports = {
